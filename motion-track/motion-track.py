@@ -39,6 +39,9 @@ To Edit settings
 ctrl-x y to save changes and exit.
 
 """
+import glob
+
+from firebasedata import LiveData
 
 print("Loading ....")
 # import the necessary packages
@@ -129,9 +132,61 @@ CV_GREEN = (0, 255, 0)
 CV_RED = (0, 0, 255)
 MO_COLOR = CV_GREEN  # color of motion circle or rectangle
 
-
 # ------------------------------------------------------------------------------
-def my_stuff(image_frame, xy_pos):
+import serial
+import pyrebase
+
+app = pyrebase.initialize_app(FB_CONFIG)
+db = app.database()
+storage = app.storage()
+
+command = 'aim'
+
+
+def shoot_handler(sender, value=None):
+    global command
+    print(value['shoot'])
+    print(value['command'])
+    if value['shoot']:
+        command = "shoot"
+    else:
+        command = "aim"
+
+
+live = LiveData(app, '/')
+data = live.get_data()
+live.signal('/').connect(shoot_handler)
+
+
+def get_port():
+    ports = glob.glob('/dev/tty[A-Za-z]*')
+    for port in ports:
+        try:
+            s = serial.Serial(port)
+            s.close()
+            return port
+        except (OSError, serial.SerialException):
+            pass
+    return None
+
+
+port = get_port()
+print(port)
+# ser = serial.Serial('/dev/ttyACM0', 9600)
+ser = serial.Serial(port, 9600)
+
+logging.info("Initializing arduino serial ...")
+time.sleep(2)
+
+
+def hareket_yoksa(image_frame):
+    komut = "<Stop, 0, 0>"
+    ser.write(komut.encode())
+    db.update({'shoot': 0})
+
+
+def hareket_varsa(image_frame, xy_pos):
+    global command
     """
     This is where You would put code for handling motion event(s)
     Below is just some sample code to indicate area of movement
@@ -142,36 +197,39 @@ def my_stuff(image_frame, xy_pos):
     a security plugin that does not use speed data but just tracks motion
     and records image when trigger length is reached.
     """
-    import pyrebase
-    config = {
-        'apiKey': "AIzaSyCydeZI98pCe67mwq7oPr8g-VdrUGPj5UU",
-        'databaseURL': "https://t3veletdestroyer.firebaseio.com",
-        'projectId': "t3veletdestroyer",
-        'storageBucket': "t3veletdestroyer.appspot.com",
-        'messagingSenderId': "595948010085",
-        'authDomain': "t3veletdestroyer.firebaseapp.com"
-    }
-
-    app = pyrebase.initialize_app(config)
-    db = app.database()
-    storage = app.storage()
 
     x_pos, y_pos = xy_pos
 
-    quadrant = ""
-    if y_pos < IMAGE_H / 2:
-        quadrant = quadrant + "Top"
-    else:
-        quadrant = quadrant + "Bottom"
-    if x_pos < IMAGE_W / 2:
-        quadrant = quadrant + " Left"
-    else:
-        quadrant = quadrant + " Right"
-    logging.info("cxy(%i,%i) %s Quadrant image=%ix%i",
-                 x_pos, y_pos, quadrant, IMAGE_W, IMAGE_H)
+    # Send data to Arduino
+    x_coord = int(((x_pos - IMAGE_W / 2) / (IMAGE_W / 2)) * 100)
+    y_coord = -int(((y_pos - IMAGE_H / 2) / (IMAGE_H / 2)) * 100)
 
-    db.update({'movementCoord': xy_pos,
-               'movementQuadrant': quadrant})
+    #  Servo max aci buradan ayarlanabilir
+    MAX_X = 50
+    MAX_Y = 50
+
+    alt_coord = int((MAX_X * x_coord) / 100 + 90)
+    ust_coord = int((MAX_Y * y_coord) / 100 + 90)
+    komut = "<{}, {}, {}>".format(command, alt_coord, ust_coord)
+    logging.info("Komut: {}".format(komut))
+    ser.write(komut.encode())
+
+    cv2.circle(image_frame, xy_pos, CIRCLE_SIZE, MO_COLOR, LINE_THICKNESS)
+    if os.path.isfile("image.jpg"):
+        os.remove("image.jpg")
+    cv2.imwrite("image.jpg", image_frame)
+    storage.child("images/image.jpg").put("image.jpg")
+
+    logging.info("Real values ({}, {}), converted values ({}, {})".format(
+        x_pos, y_pos, x_coord, y_coord))
+
+    logging.info("Arduino: {} - {}".format(alt_coord, ust_coord))
+
+    db.update({'movementCoord': (alt_coord, ust_coord)})
+    time.sleep(2)
+
+
+
 
 
 # ------------------------------------------------------------------------------
@@ -255,14 +313,12 @@ class WebcamVideoStream:
         t = Thread(target=self.update, args=())
         t.daemon = True
         t.start()
+        self.t = t
         return self
 
     def update(self):
         """ keep looping infinitely until the thread is stopped """
-        while True:
-            # if the thread indicator variable is set, stop the thread
-            if self.stopped:
-                return
+        while not self.stopped:
             # otherwise, read the next frame from the webcam stream
             (self.grabbed, self.frame) = self.webcam.read()
 
@@ -273,6 +329,7 @@ class WebcamVideoStream:
     def stop(self):
         """ indicate that the thread should be stopped """
         self.stopped = True
+        self.t.join()
 
 
 # ------------------------------------------------------------------------------
@@ -304,7 +361,7 @@ def track():
         time.sleep(4)
         return
     if window_on:
-        logging.info("Press q in window Quits")
+        logging.info("Press q in window to Quit")
     else:
         logging.info("Press ctrl-c to Quit")
     logging.info("Start Motion Tracking ...")
@@ -360,7 +417,7 @@ def track():
                     c_xy = (int(x + w / 2), int(y + h / 2))  # centre of contour
                     r_xy = (x, y)  # Top left corner of rectangle
             if motion_found:
-                my_stuff(image2, c_xy)  # Do Something here with motion data
+                hareket_varsa(image2, c_xy)  # Do Something here with motion data
                 if debug:
                     logging.info("cxy(%i,%i) Contours:%i Largest:%ix%i=%i sqpx",
                                  c_xy[0], c_xy[1], total_contours,
@@ -374,7 +431,7 @@ def track():
                         cv2.rectangle(image2, r_xy, (x + w, y + h),
                                       MO_COLOR, LINE_THICKNESS)
             else:
-                my_other_stuff(image2)
+                hareket_yoksa(image2)
         if window_on:
             if diff_window_on:
                 cv2.imshow('Difference Image', difference_image)
@@ -383,38 +440,44 @@ def track():
             # Note setting a bigger window will slow the FPS
             if WINDOW_BIGGER > 1:
                 image2 = cv2.resize(image2, (big_w, big_h))
-            cv2.imshow('Press q in Window Quits)', image2)
+            cv2.imshow('Press q Window to Quit', image2)
             # Close Window if q pressed while mouse over opencv gui window
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 cv2.destroyAllWindows()
                 vs.stop()
                 logging.info("End Motion Tracking")
-                sys.exit(0)
+                return
 
 
-# ------------------------------------------------------------------------------
-if __name__ == '__main__':
+def capture_loop():
     while True:
+        print('Entered loop')
         """
         Save images to an in-program stream
         Setup video stream on a processor Thread for faster speed
         """
-        try:
-            if WEBCAM:
-                logging.info("Initializing USB Web Camera ...")
-                vs = WebcamVideoStream().start()
-                time.sleep(4.0)  # Allow WebCam time to initialize
-            else:
-                logging.info("Initializing Pi Camera ....")
-                vs = PiVideoStream().start()
-                vs.camera.rotation = CAMERA_ROTATION
-                vs.camera.hflip = CAMERA_HFLIP
-                vs.camera.vflip = CAMERA_VFLIP
-                time.sleep(2.0)  # Allow PiCamera time to initialize
-            track()
-        except KeyboardInterrupt:
-            vs.stop()
-            print("")
-            logging.info("User Pressed Keyboard ctrl-c")
-            logging.info("Exiting %s %s", PROG_NAME, PROG_VER)
-            sys.exit(0)
+        track()
+        vs.stop()
+        return
+
+
+# ------------------------------------------------------------------------------
+if __name__ == '__main__':
+    try:
+        if WEBCAM:
+            logging.info("Initializing USB Web Camera ...")
+            vs = WebcamVideoStream().start()
+            time.sleep(4.0)  # Allow WebCam time to initialize
+        else:
+            logging.info("Initializing Pi Camera ....")
+            vs = PiVideoStream().start()
+            vs.camera.rotation = CAMERA_ROTATION
+            vs.camera.hflip = CAMERA_HFLIP
+            vs.camera.vflip = CAMERA_VFLIP
+            time.sleep(2.0)  # Allow PiCamera time to initialize
+        capture_loop()
+
+    except KeyboardInterrupt:
+        vs.stop()
+        logging.info("User Pressed Keyboard ctrl-c")
+        logging.info("Exiting %s %s", PROG_NAME, PROG_VER)
