@@ -42,3 +42,13 @@ FRAME_COUNTER = 1000  # used when show_fps=True  Sets frequency of display
 MIN_AREA = 200       # excludes all contours less than or equal to this Area
 THRESHOLD_SENSITIVITY = 25
 BLUR_SIZE = 10
+
+FB = True  # default=False True=save to firebase db False=Don't save
+FB_CONFIG = {
+    'apiKey': "AIzaSyCydeZI98pCe67mwq7oPr8g-VdrUGPj5UU",
+    'databaseURL': "https://t3veletdestroyer.firebaseio.com",
+    'projectId': "t3veletdestroyer",
+    'storageBucket': "t3veletdestroyer.appspot.com",
+    'messagingSenderId': "595948010085",
+    'authDomain': "t3veletdestroyer.firebaseapp.com"
+}
