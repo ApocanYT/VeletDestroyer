@@ -101,7 +101,7 @@ void showParsedData() {
     Serial.print("alt_coord ");
     Serial.println(alt_coord);
     Serial.print("ust_coord ");
-    Serial.println(usd_coord);
+    Serial.println(ust_coord);
     // Buraya servo hareket kodunu yazmalisiniz
     if (messageFromPC == "Stop"){
       digitalWrite(laser, LOW);

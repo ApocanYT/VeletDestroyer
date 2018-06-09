@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 motion-track  written by Claude Pageau pageauc@gmail.com
@@ -140,17 +140,17 @@ app = pyrebase.initialize_app(FB_CONFIG)
 db = app.database()
 storage = app.storage()
 
-command = 'aim'
+command = '1'
 
 
 def shoot_handler(sender, value=None):
     global command
-    print(value['shoot'])
-    print(value['command'])
-    if value['shoot']:
-        command = "shoot"
+    print('Value of shoot is ', value['shoot'])
+    if int(value['shoot']) == 1:
+        command = "2"
     else:
-        command = "aim"
+        command = "1"
+    print ('Command is ', command)
 
 
 live = LiveData(app, '/')
@@ -176,11 +176,11 @@ print(port)
 ser = serial.Serial(port, 9600)
 
 logging.info("Initializing arduino serial ...")
-time.sleep(2)
+time.sleep(1)
 
 
 def hareket_yoksa(image_frame):
-    komut = "<Stop, 0, 0>"
+    komut = "<0, 0, 0>"
     ser.write(komut.encode())
     db.update({'shoot': 0})
 
@@ -201,17 +201,17 @@ def hareket_varsa(image_frame, xy_pos):
     x_pos, y_pos = xy_pos
 
     # Send data to Arduino
-    x_coord = int(((x_pos - IMAGE_W / 2) / (IMAGE_W / 2)) * 100)
-    y_coord = -int(((y_pos - IMAGE_H / 2) / (IMAGE_H / 2)) * 100)
+    x_coord = -int(((x_pos - IMAGE_W / 2) / (IMAGE_W / 2)) * 100)
+    y_coord = int(((y_pos - IMAGE_H / 2) / (IMAGE_H / 2)) * 100)
 
     #  Servo max aci buradan ayarlanabilir
-    MAX_X = 50
-    MAX_Y = 50
+    MAX_X = 90
+    MAX_Y = 90
 
-    alt_coord = int((MAX_X * x_coord) / 100 + 90)
-    ust_coord = int((MAX_Y * y_coord) / 100 + 90)
+    alt_coord = -int((MAX_X * x_coord) / 100 + 90)
+    ust_coord = -int((MAX_Y * y_coord) / 100 + 90)
     komut = "<{}, {}, {}>".format(command, alt_coord, ust_coord)
-    logging.info("Komut: {}".format(komut))
+    print("Komut: {}".format(komut))
     ser.write(komut.encode())
 
     cv2.circle(image_frame, xy_pos, CIRCLE_SIZE, MO_COLOR, LINE_THICKNESS)
@@ -226,7 +226,7 @@ def hareket_varsa(image_frame, xy_pos):
     logging.info("Arduino: {} - {}".format(alt_coord, ust_coord))
 
     db.update({'movementCoord': (alt_coord, ust_coord)})
-    time.sleep(2)
+    #time.sleep(2)
 
 
 
@@ -358,7 +358,7 @@ def track():
         vs.stop()
         logging.error("Problem Connecting To Camera Stream.")
         logging.error("Restarting Camera. One Moment Please ...")
-        time.sleep(4)
+        time.sleep(0)
         return
     if window_on:
         logging.info("Press q in window to Quit")
@@ -467,7 +467,7 @@ if __name__ == '__main__':
         if WEBCAM:
             logging.info("Initializing USB Web Camera ...")
             vs = WebcamVideoStream().start()
-            time.sleep(4.0)  # Allow WebCam time to initialize
+            time.sleep(1.0)  # Allow WebCam time to initialize
         else:
             logging.info("Initializing Pi Camera ....")
             vs = PiVideoStream().start()
