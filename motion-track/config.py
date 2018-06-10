@@ -2,7 +2,7 @@
 
 # Display Settings
 # ----------------
-debug = True        # Set to False for no data display
+debug = False  # Set to False for no data display
 window_on = True   # Set to True displays opencv windows (GUI desktop reqd)
 show_fps = True    # Show Frames per second
 

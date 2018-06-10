@@ -140,7 +140,7 @@ app = pyrebase.initialize_app(FB_CONFIG)
 db = app.database()
 storage = app.storage()
 
-command = '1'
+command = 0
 
 
 def shoot_handler(sender, value=None):
@@ -148,12 +148,13 @@ def shoot_handler(sender, value=None):
     print('Value of shoot is ', value['shoot'])
     komut_no = int(value['shoot'])
     if komut_no == 1:
-        command = "1"
-    elif komut_no == 2:
-        command = "2"
+        command = -1
+        print('Command is ', command)
+        komut = "<{}, {}, {}>".format(command, 0, 0)
+        print("Komut: {}".format(komut))
+        ser.write(komut.encode())
     else:
-        command = "0"
-    print('Command is ', command)
+        command = komut_no + 1
 
 
 live = LiveData(app, '/')
@@ -163,6 +164,7 @@ live.signal('/').connect(shoot_handler)
 import serial.tools.list_ports
 
 ports = list(serial.tools.list_ports.comports())
+
 
 def get_port():
     ports = glob.glob('/dev/tty[A-Za-z]*')
@@ -177,7 +179,6 @@ def get_port():
 
 
 port = ports[0]
-
 
 # ser = serial.Serial('/dev/ttyACM0', 9600)
 ser = serial.Serial(port.device, 9600)
@@ -210,15 +211,19 @@ def hareket_varsa(image_frame, xy_pos):
     x_pos, y_pos = xy_pos
 
     # Send data to Arduino
-    x_coord = -int(((x_pos - IMAGE_W / 2) / (IMAGE_W / 2)) * 100)
+    x_coord = int(((x_pos - IMAGE_W / 2) / (IMAGE_W / 2)) * 100)
     y_coord = int(((y_pos - IMAGE_H / 2) / (IMAGE_H / 2)) * 100)
 
     #  Servo max aci buradan ayarlanabilir
     MAX_X = 90
     MAX_Y = 90
+    ORTA = 90
 
-    alt_coord = -int((MAX_X * x_coord) / 100 + 90)
-    ust_coord = -int((MAX_Y * y_coord) / 100 + 90)
+    # ______________________________________________________
+    # Konum icin burayi degistirebilirsin
+    # ------------------------------------------------------
+    alt_coord = -int((MAX_X * x_coord) / 100 + ORTA)
+    ust_coord = -int((MAX_Y * y_coord) / 100 + ORTA)
     komut = "<{}, {}, {}>".format(command, alt_coord, ust_coord)
     print("Komut: {}".format(komut))
     ser.write(komut.encode())
@@ -235,10 +240,7 @@ def hareket_varsa(image_frame, xy_pos):
     logging.info("Arduino: {} - {}".format(alt_coord, ust_coord))
 
     db.update({'movementCoord': (alt_coord, ust_coord)})
-    #time.sleep(2)
-
-
-
+    # time.sleep(2)
 
 
 # ------------------------------------------------------------------------------

@@ -21,8 +21,8 @@ boolean newData = false;
 
 void setup() {
     Serial.begin(9600);
-    Serial.println("This demo expects 3 pieces of data - text, an integer and a floating point value");
-    Serial.println("Enter data in this style <HelloWorld, 12, 24.7>  ");
+    Serial.println("3 rakam bekleniyor: komut,  x koordinati ve y koordinati");
+    Serial.println("Bu sekilde gonderilir <-1, 10, 15>  ");
     Serial.println();
     alt.attach(8);
     ust.attach(9);
@@ -106,6 +106,14 @@ void showParsedData() {
     // Buraya servo hareket kodunu yazmalisiniz
     if (komut == 0){
       digitalWrite(laser, LOW);
+    }
+    else if (komut == -1){
+       for (int i=0; i<5; i++){
+                      digitalWrite(laser, HIGH);
+                      delay(300);
+                      digitalWrite(laser, LOW);
+                      delay(300);
+                    }
     }
     else {
             alt.write(alt_coord);
