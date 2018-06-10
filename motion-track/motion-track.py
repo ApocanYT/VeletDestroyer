@@ -146,17 +146,23 @@ command = '1'
 def shoot_handler(sender, value=None):
     global command
     print('Value of shoot is ', value['shoot'])
-    if int(value['shoot']) == 1:
+    komut_no = int(value['shoot'])
+    if komut_no == 1:
+        command = "1"
+    elif komut_no == 2:
         command = "2"
     else:
-        command = "1"
-    print ('Command is ', command)
+        command = "0"
+    print('Command is ', command)
 
 
 live = LiveData(app, '/')
 data = live.get_data()
 live.signal('/').connect(shoot_handler)
 
+import serial.tools.list_ports
+
+ports = list(serial.tools.list_ports.comports())
 
 def get_port():
     ports = glob.glob('/dev/tty[A-Za-z]*')
@@ -170,16 +176,19 @@ def get_port():
     return None
 
 
-port = get_port()
-print(port)
+port = ports[0]
+
+
 # ser = serial.Serial('/dev/ttyACM0', 9600)
-ser = serial.Serial(port, 9600)
+ser = serial.Serial(port.device, 9600)
 
 logging.info("Initializing arduino serial ...")
 time.sleep(1)
 
 
 def hareket_yoksa(image_frame):
+    global command
+    command = 0
     komut = "<0, 0, 0>"
     ser.write(komut.encode())
     db.update({'shoot': 0})
@@ -446,6 +455,8 @@ def track():
                 cv2.destroyAllWindows()
                 vs.stop()
                 logging.info("End Motion Tracking")
+                live.hangup()
+
                 return
 
 

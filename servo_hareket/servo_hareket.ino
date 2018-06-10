@@ -5,10 +5,11 @@ const byte numChars = 32;
 char receivedChars[numChars];
 char tempChars[numChars];        // temporary array for use when parsing
 
-      // variables to hold the parsed data
+// variables to hold the parsed data
 char messageFromPC[numChars] = {0};
 int alt_coord;
 int ust_coord;
+int komut;
 
 Servo alt;
 Servo ust;
@@ -83,8 +84,8 @@ void parseData() {      // split the data into its parts
     char * strtokIndx; // this is used by strtok() as an index
 
     strtokIndx = strtok(tempChars,",");      // get the first part - the string
-    strcpy(messageFromPC, strtokIndx); // copy it to messageFromPC
- 
+    komut = atoi(strtokIndx); // copy it to messageFromPC
+    
     strtokIndx = strtok(NULL, ","); // this continues where the previous call left off
     alt_coord = atoi(strtokIndx);     // convert this part to an integer
 
@@ -96,23 +97,23 @@ void parseData() {      // split the data into its parts
 //============
 
 void showParsedData() {
-    Serial.print("Message ");
-    Serial.println(messageFromPC);
+    Serial.print("Komut ");
+    Serial.println(komut);
     Serial.print("alt_coord ");
     Serial.println(alt_coord);
     Serial.print("ust_coord ");
     Serial.println(ust_coord);
     // Buraya servo hareket kodunu yazmalisiniz
-    if (messageFromPC == "Stop"){
+    if (komut == 0){
       digitalWrite(laser, LOW);
     }
     else {
             alt.write(alt_coord);
             ust.write(ust_coord);
-            if (messageFromPC == "Aim") {
+            if (komut == 1) {
                 digitalWrite(laser, HIGH);
             }
-            else if (messageFromPC == "Shoot") {
+            else if (komut == 2) {
                   for (int i=0; i<5; i++){
                       digitalWrite(laser, HIGH);
                       delay(300);
