@@ -161,9 +161,9 @@ live = LiveData(app, '/')
 data = live.get_data()
 live.signal('/').connect(shoot_handler)
 
-import serial.tools.list_ports
+#import serial.tools.list_ports
 
-ports = list(serial.tools.list_ports.comports())
+#ports = list(serial.tools.list_ports.comports())
 
 
 def get_port():
@@ -178,10 +178,10 @@ def get_port():
     return None
 
 
-port = ports[0]
+port = get_port()
 
 # ser = serial.Serial('/dev/ttyACM0', 9600)
-ser = serial.Serial(port.device, 9600)
+ser = serial.Serial(port, 9600)
 
 logging.info("Initializing arduino serial ...")
 time.sleep(1)
